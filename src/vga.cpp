@@ -55,29 +55,6 @@ namespace Vga
 	{
 		FrameBuffer::init();
 
-		int offsetx = 7;
-		for(int y = 60; y < 540; ++y) {
-			for(int x = offsetx; x < offsetx + 80; ++x)
-				FrameBuffer::buffer()[y * FrameBuffer::FrameBufferWidth + x] = 0xff;
-		}
-
-		/*
-		for(int y = 0; y < FrameBuffer::Height; y += FrameBuffer::Height - 1) {
-			for(int x = 0; x < FrameBuffer::FrameBufferWidth - 1; ++x)
-				FrameBuffer::buffer()[y * FrameBuffer::FrameBufferWidth + x] = 0xff;
-		}
-
-		for(int y = 1; y < FrameBuffer::Height - 1; y += 1) {
-			int x = 0;
-			FrameBuffer::buffer()[y * FrameBuffer::FrameBufferWidth + x] = 0x80;
-		}
-
-		for(int y = 1; y < FrameBuffer::Height - 1; y += 1) {
-			int x = FrameBuffer::FrameBufferWidth - 4;
-			FrameBuffer::buffer()[y * FrameBuffer::FrameBufferWidth + x] = 0x01;
-		}
-		*/
-
 		HSync::init();
 		VSync::init();
 	}
