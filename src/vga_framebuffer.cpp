@@ -17,12 +17,16 @@
  *   Size:       60000 B (58 kB)
  *
  * Spi:
- *   Frequency: 40MHz
+ *   Frequency: 20MHz
  *   Data size: 1 B
- *   Baud rate: 1 px
+ *   Baud rate: 0.5 px
  *
  * Dma:
  *   s_frameBuffer --> Spi
+ *
+ * Half resolution mode (VGA_FB_SCALE_DOUBLE):
+ *   Duplicates columns (Uses half clock speed)
+ *   Duplicates rows (sends same row twice)
  *
  * Peripherals:
  *
@@ -60,6 +64,12 @@ namespace Vga
 		static SPI_TypeDef * const Spi = SPI1;
 		static const uint32_t SpiRcc = RCC_APB2Periph_SPI1;
 
+#if VGA_FB_SCALE_DOUBLE
+		static const uint16_t Prescaler = SPI_BaudRatePrescaler_4;
+#else
+		static const uint16_t Prescaler = SPI_BaudRatePrescaler_2;
+#endif
+
 		static const uint32_t
 			Pin = GPIO_Pin_7,
 			PinSrc = GPIO_PinSource7;
@@ -74,7 +84,7 @@ namespace Vga
 				.SPI_CPOL = SPI_CPOL_Low,
 				.SPI_CPHA = SPI_CPHA_2Edge,
 				.SPI_NSS = SPI_NSS_Soft,
-				.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2, // TODO: Increase
+				.SPI_BaudRatePrescaler = Prescaler,
 				.SPI_FirstBit = SPI_FirstBit_MSB,
 				.SPI_CRCPolynomial = 7
 		};
@@ -102,7 +112,7 @@ namespace Vga
 				.DMA_PeripheralBaseAddr = reinterpret_cast<uint32_t>(&Spi::Spi->DR),
 				.DMA_Memory0BaseAddr = reinterpret_cast<uint32_t>(FrameBuffer::s_frameBuffer),
 				.DMA_DIR = DMA_DIR_MemoryToPeripheral,
-				.DMA_BufferSize = FrameBuffer::FrameBufferWidth,
+				.DMA_BufferSize = FrameBuffer::Width,
 				.DMA_PeripheralInc = DMA_PeripheralInc_Disable,
 				.DMA_MemoryInc = DMA_MemoryInc_Enable,
 				.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte,
@@ -185,15 +195,28 @@ namespace Vga
 
 extern "C" void DMA2_Stream3_IRQHandler(void)
 {
-	static uint32_t row = 0;
+	static int row = 0;
 
 	Vga::Dma::Dma->LIFCR = DMA_IT_TCIF3;
 	Vga::Dma::Stream->CR &= ~DMA_SxCR_EN;
-	Vga::Dma::Stream->NDTR = Vga::FrameBuffer::FrameBufferWidth;
+	Vga::Dma::Stream->NDTR = Vga::FrameBuffer::Width;
 
 	Vga::setHBlank();
 
-	if(row++ == Vga::FrameBuffer::FrameBufferHeight) {
+#if VGA_FB_SCALE_DOUBLE
+	if(row & 1) {
+		Vga::Dma::Stream->M0AR += Vga::FrameBuffer::WidthBytes;
+	}
+
+	if(row++ == Vga::FrameBuffer::Height << 1) {
+		Vga::Dma::Stream->M0AR = reinterpret_cast<uint32_t>(Vga::FrameBuffer::s_frameBuffer);
+
+		Vga::setVBlank();
+
+		row = 0;
+	}
+#else
+	if(row++ == Vga::FrameBuffer::Height) {
 		Vga::Dma::Stream->M0AR = reinterpret_cast<uint32_t>(Vga::FrameBuffer::s_frameBuffer);
 
 		Vga::setVBlank();
@@ -201,6 +224,8 @@ extern "C" void DMA2_Stream3_IRQHandler(void)
 		row = 0;
 	}
 	else
-		Vga::Dma::Stream->M0AR += Vga::FrameBuffer::FrameBufferWidth;
+		Vga::Dma::Stream->M0AR += Vga::FrameBuffer::WidthBytes;
+
+#endif
 }
 

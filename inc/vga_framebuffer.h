@@ -10,14 +10,27 @@
 
 #include "stm32f4xx.h"
 
+#define VGA_FB_SCALE_DOUBLE 1
+
 namespace Vga
 {
 	namespace FrameBuffer
 	{
+#if VGA_FB_SCALE_DOUBLE
 		static const int
-			FrameBufferWidth = 800 / 8,
-			FrameBufferHeight = 600,
-			Size = FrameBufferWidth * FrameBufferHeight;
+			WidthOffset = 7,
+			WidthBytes = 1 << WidthOffset,
+			Width = 400 / 8,
+			Height = 300,
+			Size = WidthBytes * Height;
+#else
+		static const int
+			WidthOffset = 7,
+			WidthBytes = 1 << WidthOffset,
+			Width = 800 / 8,
+			Height = 600,
+			Size = WidthBytes * Height;
+#endif
 
 		void init();
 
